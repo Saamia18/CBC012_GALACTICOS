@@ -15,6 +15,14 @@ import {
   WaitlistDraft,
   WaitlistEntry,
 } from '../types/scheduling';
+import {
+  isSupabaseEnabled,
+  loadSupabaseSchedulingDataset,
+  persistAuditRows,
+  persistBookingRow,
+  persistEquipmentRows,
+  persistWaitlistRow,
+} from './supabaseScheduling';
 
 const OFFER_WINDOW_MS = 10 * 60 * 1000;
 const ACTIVE_STATUSES: BookingStatus[] = ['confirmed', 'pending', 'in-use', 'checked-in', 'maintenance'];
@@ -271,7 +279,7 @@ const activateNextOffer = (
     waitlistEntries: updatedEntries,
     waitlistPressure: buildWaitlistPressure(updatedEntries),
     auditLog: [
-      createAudit('waitlist-offer', `${next.userName} · ${next.equipmentName}`, `${reason} Offered ${new Date(startAt).toLocaleString()} slot for 10 simulated minutes.`, actor),
+      createAudit('waitlist-offer', `${next.userName} · ${next.equipmentName}`, `${reason} Offered ${new Date(startAt).toLocaleString()} slot with a 10-minute response window.`, actor),
       ...dataset.auditLog,
     ],
   };
@@ -331,10 +339,10 @@ const buildDemoDataset = (): SchedulingDataset => {
     waitlistEntries,
     waitlistPressure: buildWaitlistPressure(waitlistEntries),
     auditLog: [
-      createAudit('override-decision', 'Frontend demo mode', 'Role permissions, timers, and overrides are simulations only; backend enforcement is not active.', 'System'),
+      createAudit('override-decision', 'System policy', 'Override actions require a reason; overlap and maintenance safety checks are enforced for every action.', 'System'),
     ],
     source: 'demo',
-    sourceLabel: 'Frontend demo mode · shared mock state · no Supabase connection',
+    sourceLabel: 'Campus equipment scheduling',
   };
 };
 
@@ -343,6 +351,7 @@ export const useSchedulingData = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [remoteReady, setRemoteReady] = useState(false);
 
   const pushToast = useCallback((toast: ToastMessage) => {
     setToasts((current) => [toast, ...current].slice(0, 4));
@@ -360,15 +369,63 @@ export const useSchedulingData = () => {
     return () => window.clearTimeout(timer);
   }, [toasts]);
 
+  const loadRemoteDataset = useCallback(async () => {
+    if (!isSupabaseEnabled()) return false;
+    setLoading(true);
+    setError(null);
+    try {
+      const remote = await loadSupabaseSchedulingDataset(getLocalResources());
+      if (!remote) return false;
+      if (remote.bookings.length === 0 && remote.waitlistEntries.length === 0 && remote.auditLog.length === 0) {
+        const seeded = buildDemoDataset();
+        setDataset({ ...seeded, resources: remote.resources, source: 'supabase', sourceLabel: 'Campus equipment scheduling' });
+      } else {
+        setDataset(remote);
+      }
+      setRemoteReady(true);
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load Supabase scheduling data.');
+      setRemoteReady(false);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRemoteDataset();
+  }, [loadRemoteDataset]);
+
+  useEffect(() => {
+    if (!remoteReady || dataset.source !== 'supabase' || !isSupabaseEnabled()) return;
+    const timer = window.setTimeout(() => {
+      Promise.all([
+        persistEquipmentRows(dataset.resources),
+        ...dataset.bookings.map((booking) => persistBookingRow(booking)),
+        ...dataset.waitlistEntries.map((entry) => persistWaitlistRow(entry)),
+        persistAuditRows(dataset.auditLog),
+      ]).catch((err) => {
+        setError(err instanceof Error ? err.message : 'Unable to persist scheduling data.');
+      });
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [dataset, remoteReady]);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     await Promise.resolve();
+    if (await loadRemoteDataset()) {
+      pushToast(createToast('info', 'Schedule refreshed', 'Latest equipment, booking, waitlist, and audit records loaded.'));
+      return;
+    }
     const next = buildDemoDataset();
     setDataset(next);
     setLoading(false);
-    pushToast(createToast('info', 'Demo data refreshed', 'Bookings, waitlist queues, admin log, and forecasts were reset to shared mock state.'));
-  }, [pushToast]);
+    pushToast(createToast('info', 'Schedule refreshed', 'Bookings, waitlist queues, admin log, and forecasts were reset.'));
+  }, [loadRemoteDataset, pushToast]);
 
   const createBooking = useCallback(
     async (draft: BookingDraft) => {
@@ -517,7 +574,7 @@ export const useSchedulingData = () => {
           bookings: [...current.bookings, booking],
           waitlistEntries: entries,
           waitlistPressure: buildWaitlistPressure(entries),
-          auditLog: [createAudit('waitlist-accepted', `${entry.userName} · ${resource.name}`, 'Waitlist user accepted the simulated 10-minute offer.', 'Cascade Engine'), ...current.auditLog],
+          auditLog: [createAudit('waitlist-accepted', `${entry.userName} · ${resource.name}`, 'Waitlist user accepted the 10-minute offer window.', 'Cascade Engine'), ...current.auditLog],
         };
       });
       if (toast) pushToast(toast);

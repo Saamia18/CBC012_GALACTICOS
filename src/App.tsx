@@ -8,6 +8,7 @@ import { ViewportControls } from './components/ViewportControls';
 import { ScrollIndicator } from './components/ScrollIndicator';
 import { AnalyticsPlaceholder } from './components/AnalyticsPlaceholder';
 import { SidebarNav } from './components/SidebarNav';
+import { MiniChatbot } from './components/MiniChatbot';
 import { useSchedulingData } from './lib/schedulingData';
 import { buildCampusUsageHeatmap, HeatmapRange } from './utils/usageHeatmap';
 import { AppTheme, ThemeToggle } from './components/ThemeToggle';
@@ -92,6 +93,7 @@ export const App: React.FC = () => {
         {/* Below the Fold Section */}
         <AnalyticsPlaceholder scheduling={scheduling} />
       </main>
+      <MiniChatbot resources={scheduling.resources} bookings={scheduling.bookings} />
     </div>
   );
 };

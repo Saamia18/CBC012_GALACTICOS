@@ -132,7 +132,7 @@ export interface SchedulingDataset {
   waitlistEntries: WaitlistEntry[];
   waitlistPressure: Record<string, number>;
   auditLog: AdminAuditEntry[];
-  source: 'demo';
+  source: 'demo' | 'supabase';
   sourceLabel: string;
 }
 

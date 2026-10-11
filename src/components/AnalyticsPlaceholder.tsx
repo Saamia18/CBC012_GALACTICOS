@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database, RefreshCw, X } from 'lucide-react';
+import { CalendarDays, Database, RefreshCw, X } from 'lucide-react';
 import { AdminOverrideDashboard } from './AdminOverrideDashboard';
 import { DemandIntelligenceDashboard } from './DemandIntelligenceDashboard';
 import { EquipmentCatalog } from './EquipmentCatalog';
@@ -32,7 +32,11 @@ export const AnalyticsPlaceholder: React.FC<AnalyticsPlaceholderProps> = ({ sche
           <div className="flex flex-wrap items-center gap-2">
             <span className="compact-stat">
               <Database className="h-4 w-4 text-cyan-300" />
-              {scheduling.sourceLabel}
+              {scheduling.resources.length} equipment units
+            </span>
+            <span className="compact-stat">
+              <CalendarDays className="h-4 w-4 text-cyan-300" />
+              {scheduling.bookings.length} scheduled bookings
             </span>
             <button
               type="button"
@@ -52,7 +56,6 @@ export const AnalyticsPlaceholder: React.FC<AnalyticsPlaceholderProps> = ({ sche
           <GanttBookingCalendar
             resources={scheduling.resources}
             bookings={scheduling.bookings}
-            sourceLabel={scheduling.sourceLabel}
             loading={scheduling.loading}
             error={scheduling.error}
             onCreateBooking={scheduling.createBooking}
@@ -83,7 +86,6 @@ export const AnalyticsPlaceholder: React.FC<AnalyticsPlaceholderProps> = ({ sche
             resources={scheduling.resources}
             bookings={scheduling.bookings}
             waitlistPressure={scheduling.waitlistPressure}
-            sourceLabel={scheduling.sourceLabel}
           />
         </div>
       </div>
@@ -105,7 +107,7 @@ const ToastStack: React.FC<{
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-[90] w-[min(420px,calc(100vw-40px))] space-y-2">
+    <div className="fixed bottom-5 left-5 z-[90] w-[min(420px,calc(100vw-40px))] space-y-2">
       {toasts.map((toast) => (
         <div key={toast.id} className={`rounded-lg border p-3 shadow-glass backdrop-blur ${toneClass[toast.tone]}`}>
           <div className="flex items-start justify-between gap-3">

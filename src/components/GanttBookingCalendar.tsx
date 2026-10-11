@@ -7,7 +7,6 @@ import { EquipmentIconTile } from './EquipmentIconTile';
 interface GanttBookingCalendarProps {
   resources: ResourceUnit[];
   bookings: BookingRecord[];
-  sourceLabel: string;
   loading: boolean;
   error: string | null;
   onCreateBooking: (draft: BookingDraft) => Promise<void>;
@@ -111,7 +110,6 @@ const findAlternatives = (resource: ResourceUnit, bookings: BookingRecord[], req
 export const GanttBookingCalendar: React.FC<GanttBookingCalendarProps> = ({
   resources,
   bookings,
-  sourceLabel,
   loading,
   error,
   onCreateBooking,
@@ -207,7 +205,9 @@ export const GanttBookingCalendar: React.FC<GanttBookingCalendarProps> = ({
             Booking Calendar
           </div>
           <h2 className="section-title mt-2">{rangeLabel(range.start, range.end, view)}</h2>
-          <div className="mt-2 text-xs text-[var(--muted)]">{sourceLabel}{loading ? ' · Updating...' : ''}</div>
+          <div className="mt-2 text-xs text-[var(--muted)]">
+            {activeBookings.length} active bookings · {filteredResources.length} visible units{loading ? ' · Updating...' : ''}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

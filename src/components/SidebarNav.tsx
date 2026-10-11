@@ -154,8 +154,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapsedCh
 
         <div className="border-t border-[var(--border)] p-3">
           <div className={`rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] p-3 ${collapsed ? 'lg:px-2' : ''}`}>
-            <div className="text-[11px] font-mono uppercase tracking-widest text-[var(--muted)]">Mode</div>
-            <div className={`mt-1 text-xs text-[var(--text)] ${collapsed ? 'lg:hidden' : ''}`}>Frontend demo</div>
+            <div className="text-[11px] font-mono uppercase tracking-widest text-[var(--muted)]">Status</div>
+            <div className={`mt-1 text-xs text-[var(--text)] ${collapsed ? 'lg:hidden' : ''}`}>Campus scheduling active</div>
             <div className={`mt-2 h-1.5 rounded-full bg-[var(--border)] ${collapsed ? 'lg:hidden' : ''}`}>
               <div className="h-full w-2/3 rounded-full bg-cyan-400" />
             </div>

@@ -17,13 +17,12 @@ interface DemandIntelligenceDashboardProps {
   resources: ResourceUnit[];
   bookings: BookingRecord[];
   waitlistPressure: Record<string, number>;
-  sourceLabel: string;
 }
 
 const CATEGORIES: Array<EquipmentCategory | 'all'> = ['all', 'DSLR Camera', 'GPU Cluster', 'VR Headset', 'Microscope', '3D Printer', 'Projector', 'Lab Kit', 'Testing Device'];
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export const DemandIntelligenceDashboard: React.FC<DemandIntelligenceDashboardProps> = ({ resources, bookings, waitlistPressure, sourceLabel }) => {
+export const DemandIntelligenceDashboard: React.FC<DemandIntelligenceDashboardProps> = ({ resources, bookings, waitlistPressure }) => {
   const [rangeDays, setRangeDays] = useState(30);
   const [building, setBuilding] = useState('all');
   const [category, setCategory] = useState<EquipmentCategory | 'all'>('all');
@@ -63,7 +62,7 @@ export const DemandIntelligenceDashboard: React.FC<DemandIntelligenceDashboardPr
             Demand Intelligence
           </div>
           <h2 className="mt-2 text-xl font-semibold text-white">Forecasting and allocation signals</h2>
-          <p className="mt-1 text-xs text-slate-400">{sourceLabel}</p>
+          <div className="mt-1 text-xs text-slate-400">{filteredBookings.length} bookings analyzed · {filteredResources.length} units in scope</div>
         </div>
         <div className="grid gap-2 sm:grid-cols-4">
           <select value={rangeDays} onChange={(event) => setRangeDays(Number(event.target.value))} className="rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-300">
