@@ -48,10 +48,44 @@
     color-scheme: dark;
   }
 
+  select {
+    background-color: var(--surface-strong);
+    color: var(--text);
+    border-color: var(--border);
+  }
+
+  select:focus {
+    outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
+    outline-offset: 2px;
+    border-color: var(--accent);
+  }
+
+  select option,
+  select optgroup {
+    background-color: #20242d;
+    color: #f4f7fb;
+  }
+
+  select option:checked {
+    background-color: #0891b2;
+    color: #ffffff;
+  }
+
   .theme-light select,
   .theme-light input,
   .theme-light textarea {
     color-scheme: light;
+  }
+
+  .theme-light select option,
+  .theme-light select optgroup {
+    background-color: #fffaf0;
+    color: #362516;
+  }
+
+  .theme-light select option:checked {
+    background-color: #0e7490;
+    color: #ffffff;
   }
 }
 

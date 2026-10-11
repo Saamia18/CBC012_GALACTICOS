@@ -2,8 +2,13 @@ import React, { useEffect } from 'react';
 import { MapPin, X } from 'lucide-react';
 import { MOCK_BUILDINGS, MOCK_EQUIPMENT } from '../data/mock';
 import { useCampusStore } from '../store/campusStore';
+import { ResourceUnit } from '../types/scheduling';
 
-export const BuildingContextCard: React.FC = () => {
+interface BuildingContextCardProps {
+  resources: ResourceUnit[];
+}
+
+export const BuildingContextCard: React.FC<BuildingContextCardProps> = ({ resources }) => {
   const selectedBuildingId = useCampusStore((state) => state.selectedBuildingId);
   const selectedUnitId = useCampusStore((state) => state.selectedUnitId);
   const selectUnit = useCampusStore((state) => state.selectUnit);
@@ -43,6 +48,16 @@ export const BuildingContextCard: React.FC = () => {
       <div className="mt-3 space-y-2">
         {units.length > 0 ? (
           units.map((unit) => (
+            (() => {
+              const resource = resources.find((item) => item.id === unit.id);
+              const status = resource?.status ?? unit.status;
+              const statusText =
+                status === 'available'
+                  ? 'Available for booking'
+                  : status === 'maintenance'
+                  ? 'Blocked for maintenance'
+                  : 'Currently reserved';
+              return (
             <button
               key={unit.id}
               type="button"
@@ -56,16 +71,18 @@ export const BuildingContextCard: React.FC = () => {
               <img src={unit.iconUrl} alt="" className="h-7 w-7 rounded-lg object-contain" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs font-semibold text-[var(--text)]">
-                  {unit.name} <span className="font-mono text-cyan-500">{unit.unitNumber}</span>
+                  {resource?.name ?? unit.name} <span className="font-mono text-cyan-500">{resource?.unitId ?? unit.unitNumber}</span>
                 </span>
-                <span className="block truncate text-[11px] text-[var(--muted)]">{unit.statusText}</span>
+                <span className="block truncate text-[11px] text-[var(--muted)]">{statusText}</span>
               </span>
               <span
                 className={`h-2.5 w-2.5 rounded-full ${
-                  unit.status === 'available' ? 'bg-emerald-400' : unit.status === 'maintenance' ? 'bg-amber-400' : 'bg-rose-400'
+                  status === 'available' ? 'bg-emerald-400' : status === 'maintenance' ? 'bg-amber-400' : 'bg-rose-400'
                 }`}
               />
             </button>
+              );
+            })()
           ))
         ) : (
           <div className="rounded-xl border border-dashed border-[var(--border)] p-3 text-xs text-[var(--muted)]">

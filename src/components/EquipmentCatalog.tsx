@@ -1,21 +1,32 @@
 import React, { useMemo, useState } from 'react';
 import { CalendarPlus, CheckCircle2, Search, SlidersHorizontal, Zap } from 'lucide-react';
 import { MOCK_EQUIPMENT } from '../data/mock';
-import { ResourceUnit } from '../types/scheduling';
+import { BookingDraft, BookingRecord, ResourceUnit } from '../types/scheduling';
 import { useCampusStore } from '../store/campusStore';
+import { BookingRequestDialog } from './BookingRequestDialog';
 
 interface EquipmentCatalogProps {
   resources: ResourceUnit[];
+  bookings: BookingRecord[];
+  onCreateBooking: (draft: BookingDraft) => Promise<void>;
 }
 
 const categories = ['all', 'DSLR Camera', 'GPU Cluster', 'VR Headset', 'Microscope', '3D Printer', 'Projector', 'Lab Kit', 'Testing Device'] as const;
 const availability = ['all', 'available', 'booked', 'maintenance'] as const;
 
-export const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ resources }) => {
+export const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ resources, bookings, onCreateBooking }) => {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<(typeof categories)[number]>('all');
   const [status, setStatus] = useState<(typeof availability)[number]>('all');
+  const [bookingTarget, setBookingTarget] = useState<ResourceUnit | null>(null);
   const selectUnit = useCampusStore((state) => state.selectUnit);
+
+  const viewOnMap = (resource: ResourceUnit) => {
+    selectUnit(resource.id);
+    window.requestAnimationFrame(() => {
+      document.getElementById('campus-map')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -94,10 +105,10 @@ export const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ resources })
               </div>
               <p className="mt-3 line-clamp-2 min-h-10 text-xs leading-5 text-[var(--muted)]">{unit?.specs.model ?? 'Campus equipment'}</p>
               <div className="mt-4 flex gap-2">
-                <button type="button" onClick={() => selectUnit(resource.id)} className="secondary-button flex-1">
+                <button type="button" onClick={() => viewOnMap(resource)} className="secondary-button flex-1">
                   View on map
                 </button>
-                <button type="button" disabled={resource.status !== 'available'} className="primary-button flex-1 disabled:cursor-not-allowed disabled:opacity-50">
+                <button type="button" onClick={() => setBookingTarget(resource)} disabled={resource.status !== 'available'} className="primary-button flex-1 disabled:cursor-not-allowed disabled:opacity-50">
                   <CalendarPlus className="h-3.5 w-3.5" />
                   Book
                 </button>
@@ -111,6 +122,15 @@ export const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ resources })
         <div className="mt-5 rounded-2xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--muted)]">
           No equipment matches those filters.
         </div>
+      )}
+
+      {bookingTarget && (
+        <BookingRequestDialog
+          resource={bookingTarget}
+          bookings={bookings}
+          onCreateBooking={onCreateBooking}
+          onClose={() => setBookingTarget(null)}
+        />
       )}
     </section>
   );

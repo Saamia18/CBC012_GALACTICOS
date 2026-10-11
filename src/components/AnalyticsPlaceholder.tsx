@@ -52,7 +52,11 @@ export const AnalyticsPlaceholder: React.FC<AnalyticsPlaceholderProps> = ({ sche
         <ToastStack toasts={scheduling.toasts} onDismiss={scheduling.dismissToast} />
 
         <div className="space-y-8">
-          <EquipmentCatalog resources={scheduling.resources} />
+          <EquipmentCatalog
+            resources={scheduling.resources}
+            bookings={scheduling.bookings}
+            onCreateBooking={scheduling.createBooking}
+          />
           <GanttBookingCalendar
             resources={scheduling.resources}
             bookings={scheduling.bookings}

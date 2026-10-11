@@ -71,8 +71,12 @@ export const App: React.FC = () => {
           </div>
 
           {/* Modal Overlay: Glassmorphic anchored inspection card */}
-          <EquipmentModal />
-          <BuildingContextCard />
+          <EquipmentModal
+            resources={scheduling.resources}
+            bookings={scheduling.bookings}
+            onCreateBooking={scheduling.createBooking}
+          />
+          <BuildingContextCard resources={scheduling.resources} />
 
           {/* Bottom Left UI Overlay: Equipment Status Legend */}
           <div className="absolute bottom-6 left-6 z-20 pointer-events-none">

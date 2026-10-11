@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AlertOctagon, Check, ClipboardList, Hammer, ShieldCheck, Wrench, X } from 'lucide-react';
 import { AdminActionType, AdminAuditEntry, AdminOverrideDraft, BookingRecord, BookingStatus, ResourceUnit } from '../types/scheduling';
 import { hasIntervalOverlap } from '../lib/schedulingData';
@@ -18,7 +18,13 @@ const localDateTimeInput = (date: Date) => {
 const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
+const toIsoDateTime = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
 const ACTION_LABEL: Record<AdminActionType, string> = {
+  'group-target': 'Group target',
   'approve-request': 'Approve request',
   'reject-request': 'Reject request',
   'resolve-conflict': 'Resolve conflict',
@@ -63,10 +69,34 @@ export const AdminOverrideDashboard: React.FC<AdminOverrideDashboardProps> = ({ 
   const [selectedBookingId, setSelectedBookingId] = useState(pendingBookings[0]?.id ?? bookings[0]?.id ?? '');
   const [formError, setFormError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (bookings.length === 0) {
+      setSelectedBookingId('');
+      return;
+    }
+    if (!bookings.some((booking) => booking.id === selectedBookingId)) {
+      setSelectedBookingId(pendingBookings[0]?.id ?? bookings[0].id);
+    }
+  }, [bookings, pendingBookings, selectedBookingId]);
+
+  useEffect(() => {
+    if (resources.length > 0 && !resources.some((resource) => resource.id === equipmentId)) {
+      setEquipmentId(resources[0].id);
+    }
+  }, [equipmentId, resources]);
+
   const requireReason = async (draft: Omit<AdminOverrideDraft, 'reason' | 'actor'>, label: string) => {
     setFormError(null);
     if (!reason.trim()) {
       setFormError('A reason is required for every admin override.');
+      return;
+    }
+    if (!draft.targetId) {
+      setFormError('Choose a booking or equipment target before applying an override.');
+      return;
+    }
+    if ((draft.action === 'maintenance-block' || draft.action === 'override-decision') && (!draft.startAt || !draft.endAt || new Date(draft.endAt) <= new Date(draft.startAt))) {
+      setFormError('Choose a valid start and end time before applying this action.');
       return;
     }
     const confirmed = window.confirm(`${label}\n\nReason: ${reason}\n\nThis is a frontend demo action. Continue?`);
@@ -90,6 +120,12 @@ export const AdminOverrideDashboard: React.FC<AdminOverrideDashboardProps> = ({ 
       : status === 'maintenance'
       ? 'text-rose-300'
       : 'text-slate-500';
+
+  const applyTimedAction = (action: 'maintenance-block' | 'override-decision', label: string) => {
+    const startIso = toIsoDateTime(startAt);
+    const endIso = toIsoDateTime(endAt);
+    void requireReason({ action, targetId: equipmentId, equipmentId, startAt: startIso ?? undefined, endAt: endIso ?? undefined }, label);
+  };
 
   return (
     <section id="admin-override" className="scroll-mt-6 rounded-lg border border-rose-500/20 bg-slate-950/70 p-4 md:p-5 shadow-glass">
@@ -134,6 +170,9 @@ export const AdminOverrideDashboard: React.FC<AdminOverrideDashboardProps> = ({ 
               </select>
             </label>
             <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => void requireReason({ action: 'group-target', targetId: selectedBookingId }, 'Group related booking targets for review?')} className="rounded-md bg-cyan-400 px-3 py-2 text-xs font-semibold text-slate-950 hover:bg-cyan-300">
+                Group
+              </button>
               <button type="button" onClick={() => void requireReason({ action: 'approve-request', targetId: selectedBookingId }, 'Approve this booking request?')} className="rounded-md bg-emerald-400 px-3 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-300">
                 <Check className="inline h-3.5 w-3.5" /> Approve
               </button>
@@ -143,7 +182,7 @@ export const AdminOverrideDashboard: React.FC<AdminOverrideDashboardProps> = ({ 
               <button type="button" onClick={() => void requireReason({ action: 'resolve-conflict', targetId: selectedBookingId }, 'Cancel this booking to resolve an exception?')} className="rounded-md bg-amber-300 px-3 py-2 text-xs font-semibold text-slate-950 hover:bg-amber-200">
                 Resolve
               </button>
-              <button type="button" onClick={() => void requireReason({ action: 'override-decision', targetId: equipmentId, equipmentId, startAt: new Date(startAt).toISOString(), endAt: new Date(endAt).toISOString() }, 'Force a cascade review for this slot?')} className="rounded-md bg-cyan-400 px-3 py-2 text-xs font-semibold text-slate-950 hover:bg-cyan-300">
+              <button type="button" onClick={() => applyTimedAction('override-decision', 'Force a cascade review for this slot?')} className="rounded-md bg-cyan-400 px-3 py-2 text-xs font-semibold text-slate-950 hover:bg-cyan-300">
                 Cascade
               </button>
             </div>
@@ -174,7 +213,7 @@ export const AdminOverrideDashboard: React.FC<AdminOverrideDashboardProps> = ({ 
                 </label>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => void requireReason({ action: 'maintenance-block', targetId: equipmentId, equipmentId, startAt: new Date(startAt).toISOString(), endAt: new Date(endAt).toISOString() }, 'Block this equipment for maintenance?')} className="rounded-md bg-rose-500 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-400">
+                <button type="button" onClick={() => applyTimedAction('maintenance-block', 'Block this equipment for maintenance?')} className="rounded-md bg-rose-500 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-400">
                   Block
                 </button>
                 <button type="button" onClick={() => void requireReason({ action: 'maintenance-clear', targetId: equipmentId, equipmentId }, 'Clear maintenance blocks for this equipment?')} className="rounded-md border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900">

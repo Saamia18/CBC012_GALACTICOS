@@ -1,14 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { X, Calendar, CheckCircle2, AlertTriangle, Clock, ShieldCheck, Zap } from 'lucide-react';
+import { X, Calendar, AlertTriangle, Clock, ShieldCheck, Zap } from 'lucide-react';
 import { useCampusStore } from '../store/campusStore';
 import { MOCK_EQUIPMENT } from '../data/mock';
+import { BookingDraft, BookingRecord, ResourceUnit } from '../types/scheduling';
+import { BookingRequestDialog } from './BookingRequestDialog';
 
-export const EquipmentModal: React.FC = () => {
+interface EquipmentModalProps {
+  resources: ResourceUnit[];
+  bookings: BookingRecord[];
+  onCreateBooking: (draft: BookingDraft) => Promise<void>;
+}
+
+const activeStatuses = ['confirmed', 'pending', 'in-use', 'checked-in', 'maintenance'];
+
+const formatBookingWindow = (booking: BookingRecord) =>
+  `${new Date(booking.startAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} - ${new Date(booking.endAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+
+export const EquipmentModal: React.FC<EquipmentModalProps> = ({ resources, bookings, onCreateBooking }) => {
   const isModalOpen = useCampusStore((s) => s.isModalOpen);
   const selectedUnitId = useCampusStore((s) => s.selectedUnitId);
   const clearMapSelection = useCampusStore((s) => s.clearMapSelection);
 
-  const [bookingSuccess, setBookingSuccess] = useState<string | null>(null);
+  const [bookingTarget, setBookingTarget] = useState<ResourceUnit | null>(null);
   const [waitlistSuccess, setWaitlistSuccess] = useState<string | null>(null);
 
   // Close on Esc key
@@ -27,16 +40,40 @@ export const EquipmentModal: React.FC = () => {
   const unit = MOCK_EQUIPMENT[selectedUnitId];
   if (!unit) return null;
 
+  const resource = resources.find((item) => item.id === selectedUnitId);
+  const status = resource?.status ?? unit.status;
+  const now = Date.now();
+  const currentBooking = bookings.find(
+    (booking) =>
+      booking.equipmentId === selectedUnitId &&
+      activeStatuses.includes(booking.status) &&
+      new Date(booking.startAt).getTime() <= now &&
+      new Date(booking.endAt).getTime() > now,
+  );
+  const nextBooking = bookings
+    .filter(
+      (booking) =>
+        booking.equipmentId === selectedUnitId &&
+        activeStatuses.includes(booking.status) &&
+        new Date(booking.startAt).getTime() > now,
+    )
+    .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())[0];
+  const statusText =
+    status === 'maintenance'
+      ? 'Blocked for maintenance'
+      : currentBooking
+      ? `In use until ${new Date(currentBooking.endAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
+      : 'Available for booking';
+
   const handleBookSlot = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (unit.status !== 'available') return;
-    setBookingSuccess(`Slot confirmed for ${unit.name} ${unit.unitNumber}! Reserved until next scheduled window.`);
-    setTimeout(() => setBookingSuccess(null), 4000);
+    if (status !== 'available' || !resource) return;
+    setBookingTarget(resource);
   };
 
   const handleJoinWaitlist = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (unit.status === 'maintenance') return;
+    if (status === 'maintenance') return;
     setWaitlistSuccess(`Added to priority waitlist for ${unit.name} ${unit.unitNumber} (Priority Score: 92/100).`);
     setTimeout(() => setWaitlistSuccess(null), 4000);
   };
@@ -50,7 +87,7 @@ export const EquipmentModal: React.FC = () => {
         {/* Top Header Row */}
         <div className="flex items-center justify-between pb-2 mb-3 border-b border-cyan-500/15">
           <span className="text-xs font-mono text-slate-400 tracking-wider">
-            {unit.buildingName}
+            {resource?.buildingName ?? unit.buildingName}
           </span>
           <button
             type="button"
@@ -73,8 +110,8 @@ export const EquipmentModal: React.FC = () => {
           </div>
           <div>
             <h2 className="text-base font-semibold text-white tracking-wide flex items-center space-x-1.5">
-              <span>{unit.name}</span>
-              <span className="text-cyan-400 font-mono text-sm">{unit.unitNumber}</span>
+              <span>{resource?.name ?? unit.name}</span>
+              <span className="text-cyan-400 font-mono text-sm">{resource?.unitId ?? unit.unitNumber}</span>
             </h2>
             <p className="text-[11px] text-slate-400 font-mono line-clamp-1">
               {unit.specs.model}
@@ -86,42 +123,42 @@ export const EquipmentModal: React.FC = () => {
         <div className="flex items-center space-x-2 mb-2 text-xs font-medium">
           <span
             className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-              unit.status === 'available'
+              status === 'available'
                 ? 'bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse'
-                : unit.status === 'booked'
+                : status === 'booked'
                 ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]'
                 : 'bg-amber-400 shadow-[0_0_8px_#facc15]'
             }`}
           />
           <span
             className={`${
-              unit.status === 'available'
+              status === 'available'
                 ? 'text-emerald-400'
-                : unit.status === 'booked'
+                : status === 'booked'
                 ? 'text-rose-400'
                 : 'text-amber-400'
             }`}
           >
-            {unit.statusText}
+            {statusText}
           </span>
         </div>
 
         {/* Next Booking Info */}
-        {unit.nextBooking && (
+        {nextBooking && (
           <div className="flex items-center space-x-1.5 text-xs text-slate-300/90 mb-4 font-sans bg-slate-900/40 px-2.5 py-1.5 rounded border border-slate-700/30">
             <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span>
-              Next booking: <strong className="text-slate-100 font-medium">{unit.nextBooking.startTime} - {unit.nextBooking.endTime}</strong> ({unit.nextBooking.userName})
+              Next booking: <strong className="text-slate-100 font-medium">{formatBookingWindow(nextBooking)}</strong> ({nextBooking.requesterName})
             </span>
           </div>
         )}
 
         {/* Current Active Booking Details if Booked */}
-        {unit.currentBooking && (
+        {currentBooking && (
           <div className="flex items-center space-x-1.5 text-xs text-slate-300/90 mb-4 font-sans bg-rose-950/20 px-2.5 py-1.5 rounded border border-rose-500/20">
             <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
             <span>
-              In use by <strong className="text-rose-200">{unit.currentBooking.userName}</strong> ({unit.currentBooking.userRole})
+              In use by <strong className="text-rose-200">{currentBooking.requesterName}</strong> ({currentBooking.requesterRole})
             </span>
           </div>
         )}
@@ -132,9 +169,9 @@ export const EquipmentModal: React.FC = () => {
           <button
             type="button"
             onClick={handleBookSlot}
-            disabled={unit.status !== 'available'}
+            disabled={status !== 'available'}
             className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 flex items-center justify-center space-x-1.5 ${
-              unit.status === 'available'
+              status === 'available'
                 ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-[0_0_15px_rgba(0,240,255,0.4)] active:scale-98 cursor-pointer'
                 : 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-slate-700/30'
             }`}
@@ -147,9 +184,9 @@ export const EquipmentModal: React.FC = () => {
           <button
             type="button"
             onClick={handleJoinWaitlist}
-            disabled={unit.status === 'maintenance'}
+            disabled={status === 'maintenance'}
             className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 flex items-center justify-center space-x-1.5 ${
-              unit.status === 'maintenance'
+              status === 'maintenance'
                 ? 'bg-slate-800/40 text-slate-500 cursor-not-allowed border border-slate-700/30'
                 : 'bg-slate-900/80 hover:bg-slate-800 text-slate-200 border border-cyan-500/30 hover:border-cyan-400/60 active:scale-98 cursor-pointer'
             }`}
@@ -159,14 +196,6 @@ export const EquipmentModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Feedback Notifications */}
-        {bookingSuccess && (
-          <div className="mt-3 p-2.5 rounded bg-emerald-950/60 border border-emerald-500/40 text-[11px] text-emerald-300 flex items-center space-x-1.5 animate-in fade-in">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>{bookingSuccess}</span>
-          </div>
-        )}
-
         {waitlistSuccess && (
           <div className="mt-3 p-2.5 rounded bg-cyan-950/60 border border-cyan-500/40 text-[11px] text-cyan-300 flex items-center space-x-1.5 animate-in fade-in">
             <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0" />
@@ -174,6 +203,14 @@ export const EquipmentModal: React.FC = () => {
           </div>
         )}
       </div>
+      {bookingTarget && (
+        <BookingRequestDialog
+          resource={bookingTarget}
+          bookings={bookings}
+          onCreateBooking={onCreateBooking}
+          onClose={() => setBookingTarget(null)}
+        />
+      )}
     </div>
   );
 };

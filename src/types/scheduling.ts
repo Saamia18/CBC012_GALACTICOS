@@ -17,6 +17,7 @@ export type CampusRole = 'Student' | 'Faculty' | 'Researcher' | 'Lab Admin' | 'C
 export type WaitlistStatus = 'waiting' | 'offered' | 'accepted' | 'declined' | 'expired' | 'cancelled' | 'booked';
 
 export type AdminActionType =
+  | 'group-target'
   | 'approve-request'
   | 'reject-request'
   | 'resolve-conflict'
